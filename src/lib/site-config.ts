@@ -1,6 +1,6 @@
 export const siteConfig = {
   name: "Nyx Auto Studio",
-  url: "https://www.nyxautostudio.com.br",
+  url: "https://nyxautostudio.vercel.app",
   city: "Nova Friburgo",
   whatsapp: "5599999999999",
   whatsappDisplay: "(99) 99999-9999",
