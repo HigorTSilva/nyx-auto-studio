@@ -46,7 +46,6 @@ next-env.d.ts
 # arquivos de ferramentas de desenvolvimento (não fazem parte do site)
 /.claude/
 /CLAUDE.md
-/AGENTS.md
 /skills-lock.json
 /prompt de imagens/
 /scratch/
