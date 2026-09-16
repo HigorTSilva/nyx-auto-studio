@@ -7,30 +7,17 @@ mesma sensação de cuidado e capricho que o próprio serviço da Nyx entrega.
 
 ## Stack
 
-- Next.js (App Router)
-- TypeScript
-- Tailwind CSS
-- Framer Motion pras animações
+- **Next.js** (App Router) — framework em cima do React, cuida da estrutura das
+  páginas, das rotas e da otimização pra SEO e performance.
+- **TypeScript** — verifica os tipos dos dados antes do site ir pro ar, evita erro
+  bobo de digitação virar bug em produção.
+- **Tailwind CSS** — estilização direto no código, sem arquivo de CSS separado por
+  componente.
+- **Framer Motion** — todas as animações do site: entrada de seção ao rolar a
+  página, efeitos de mouse, transições de layout.
 
 Sem CMS, sem painel administrativo. O conteúdo (textos, imagens, links) vive dentro
 do próprio código.
-
-## Rodando localmente
-
-```bash
-npm install
-npm run dev
-```
-
-Abre em `http://localhost:3000`.
-
-Outros comandos úteis:
-
-```bash
-npm run build   # gera a versão de produção
-npm run start   # roda a versão de produção localmente
-npm run lint    # confere o código com o ESLint
-```
 
 ## Como o projeto está organizado
 
@@ -47,14 +34,6 @@ public/
 
 Cada seção da página é um componente próprio, então dá pra abrir só o arquivo da
 parte que precisa mexer sem se perder no resto.
-
-## Sobre a pasta "Conteúdo"
-
-Tem uma pasta chamada `Conteúdo/` na raiz do projeto com anotações pessoais sobre a
-construção do site — um material de estudo explicando o que foi usado e por quê, e um
-resumo pra apresentar o projeto sem entrar em detalhe técnico. Ela fica de fora do
-Git de propósito (está no `.gitignore`), porque é conteúdo pessoal, não parte do
-código do site.
 
 ## Configuração
 
