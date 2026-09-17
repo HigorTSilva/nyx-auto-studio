@@ -15,7 +15,7 @@ import { InstagramIcon } from "@/components/ui/icons";
 import { LiquidMetalButton } from "@/components/ui/liquid-metal-button";
 import { MagneticButton } from "@/components/ui/magnetic-button";
 import { siteConfig } from "@/lib/site-config";
-import { scrollToId } from "@/lib/utils";
+import { scrollToId, useMediaQuery } from "@/lib/utils";
 import { fadeUp, staggerContainer, useMagneticHover, wordReveal } from "@/lib/animations";
 
 const HEADLINE_WORDS = "Seu carro merece mais do que lavagem".split(" ");
@@ -50,6 +50,7 @@ function MagneticInstagramLink({ disabled }: { disabled: boolean }) {
 export function Hero() {
   const sectionRef = useRef<HTMLElement>(null);
   const prefersReducedMotion = useReducedMotion();
+  const isMobile = useMediaQuery("(max-width: 767px)");
   const [isPointerInside, setIsPointerInside] = useState(false);
 
   const spotlightX = useMotionValue(0);
@@ -60,9 +61,19 @@ export function Hero() {
     offset: ["start start", "end start"],
   });
 
-  const exitOpacity = useTransform(scrollYProgress, [0.45, 1], [1, 0]);
-  const exitScale = useTransform(scrollYProgress, [0.45, 1], [1, 0.94]);
-  const exitBlurPx = useTransform(scrollYProgress, [0.65, 1], [0, 6]);
+  // Duas transformações fixas (não uma com o intervalo trocado na marra):
+  // o useTransform trava o intervalo passado na primeira chamada, então
+  // só o valor escolhido depois via isMobile é que muda a cada render.
+  const exitOpacityDesktop = useTransform(scrollYProgress, [0.45, 1], [1, 0]);
+  const exitOpacityMobile = useTransform(scrollYProgress, [0.7, 1], [1, 0]);
+  const exitScaleDesktop = useTransform(scrollYProgress, [0.45, 1], [1, 0.94]);
+  const exitScaleMobile = useTransform(scrollYProgress, [0.7, 1], [1, 0.94]);
+  const exitBlurPxDesktop = useTransform(scrollYProgress, [0.65, 1], [0, 6]);
+  const exitBlurPxMobile = useTransform(scrollYProgress, [0.85, 1], [0, 6]);
+
+  const exitOpacity = isMobile ? exitOpacityMobile : exitOpacityDesktop;
+  const exitScale = isMobile ? exitScaleMobile : exitScaleDesktop;
+  const exitBlurPx = isMobile ? exitBlurPxMobile : exitBlurPxDesktop;
   const exitBlur = useMotionTemplate`blur(${exitBlurPx}px)`;
   const spotlightBackground = useMotionTemplate`radial-gradient(280px circle at ${spotlightX}px ${spotlightY}px, rgba(52, 163, 153, 0.09), transparent 75%)`;
 
@@ -112,14 +123,14 @@ export function Hero() {
           variants={staggerContainer(0.12, 0.1)}
           className="relative z-10 flex min-h-screen w-full flex-col px-6 py-8 sm:px-10 sm:py-10 lg:px-16"
         >
-          <motion.div variants={fadeUp} className="grid grid-cols-3 items-center">
-            <div className="justify-self-start">
+          <motion.div variants={fadeUp} className="relative flex items-center justify-between sm:justify-normal">
+            <Logo className="order-1 h-20 w-20 sm:order-0 sm:absolute sm:left-1/2 sm:top-1/2 sm:h-24 sm:w-24 sm:-translate-x-1/2 sm:-translate-y-1/2" />
+
+            <div className="order-2 sm:order-0">
               <MagneticInstagramLink disabled={!!prefersReducedMotion} />
             </div>
 
-            <Logo className="h-20 w-20 justify-self-center sm:h-24 sm:w-24" />
-
-            <div className="hidden justify-self-end sm:block">
+            <div className="ms-auto hidden sm:block">
               <LiquidMetalButton label="Agendar avaliação" onClick={() => scrollToId("contato")} />
             </div>
           </motion.div>

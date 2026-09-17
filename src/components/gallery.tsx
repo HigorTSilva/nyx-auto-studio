@@ -14,7 +14,7 @@ import {
 } from "framer-motion";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, ExpandIcon } from "@/components/ui/icons";
 import { getSliceProgress } from "@/lib/scroll";
-import { cn } from "@/lib/utils";
+import { cn, useMediaQuery } from "@/lib/utils";
 import { fadeUp, staggerContainer, useDirectionalReveal } from "@/lib/animations";
 
 type ServiceName = "Detailing" | "Polimento" | "Vitrificação" | "Envelopamento" | "Som" | "Motos";
@@ -394,6 +394,176 @@ function StaticProjectsRow({ onOpen }: { onOpen: (index: number) => void }) {
   );
 }
 
+// Alternativa pro celular ao efeito de carro em canvas: mais leve (só
+// transform, sem redesenhar imagem a cada pixel de scroll), mas com a
+// mesma sensação de "prender o scroll e ir pro lado até o último álbum".
+const MOBILE_CARD_VW = 78;
+const MOBILE_GAP_VW = 4;
+const MOBILE_STEP_VW = MOBILE_CARD_VW + MOBILE_GAP_VW;
+const MOBILE_VH_PER_ALBUM = 70;
+
+function MobileProjectCard({
+  project,
+  index,
+  activeIndex,
+  onOpen,
+}: {
+  project: Project;
+  index: number;
+  activeIndex: MotionValue<number>;
+  onOpen: () => void;
+}) {
+  const cover = project.photos[0];
+  const scale = useTransform(activeIndex, (active) => (active === index ? 1 : 0.92));
+  const opacity = useTransform(activeIndex, (active) => (active === index ? 1 : 0.55));
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Abrir álbum: ${project.service}`}
+      style={{ scale, opacity, width: `${MOBILE_CARD_VW}vw` }}
+      className="relative aspect-3/4 shrink-0 cursor-pointer overflow-hidden rounded-xl text-left"
+    >
+      <Image
+        src={cover.src}
+        alt={cover.alt}
+        fill
+        className="object-cover"
+        sizes={`${MOBILE_CARD_VW}vw`}
+      />
+      <div className="absolute inset-0 bg-linear-to-t from-onyx via-onyx/20 to-transparent" />
+      <span className="absolute inset-x-0 bottom-4 text-center text-lg font-bold tracking-wide text-accent-light">
+        {project.service.toUpperCase()}
+      </span>
+    </motion.button>
+  );
+}
+
+function MobileProjectsCarousel({ onOpen }: { onOpen: (index: number) => void }) {
+  const trackWrapRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: trackWrapRef, offset: ["start start", "end end"] });
+
+  const trackX = useTransform(
+    scrollYProgress,
+    [0, 1],
+    ["0vw", `-${(PROJECTS.length - 1) * MOBILE_STEP_VW}vw`],
+  );
+  const activeIndex = useTransform(scrollYProgress, (value) => getSliceProgress(value, PROJECTS.length).index);
+
+  // O carro visualmente anda pro lado, mas quem prende a rolagem é o
+  // scroll vertical — o gesto mais natural de quem vê isso num celular é
+  // arrastar o dedo pro lado, não pra cima/baixo. Aqui a gente traduz um
+  // arraste horizontal em rolagem vertical equivalente, na mesma proporção
+  // (1px de dedo = 1px de card), pra que os dois gestos deem no mesmo
+  // resultado. Só escuta na própria faixa de cards (não no resto da seção,
+  // que tem título e legenda — arrastar ali não deveria mexer no carrossel),
+  // e trava nos limites do primeiro/último álbum, pra um arraste rápido não
+  // vazar rolagem pra seção anterior/seguinte. Um gesto majoritariamente
+  // vertical não é interceptado, pra não atrapalhar a rolagem normal.
+  useEffect(() => {
+    const node = trackRef.current;
+    const section = trackWrapRef.current;
+    if (!node || !section) return;
+
+    let startX = 0;
+    let startY = 0;
+    let lastX = 0;
+    let isHorizontal = false;
+
+    function handleTouchStart(event: TouchEvent) {
+      const touch = event.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      lastX = touch.clientX;
+      isHorizontal = false;
+    }
+
+    function handleTouchMove(event: TouchEvent) {
+      const touch = event.touches[0];
+      const deltaX = touch.clientX - lastX;
+
+      if (!isHorizontal) {
+        const totalDeltaX = touch.clientX - startX;
+        const totalDeltaY = touch.clientY - startY;
+        if (Math.abs(totalDeltaX) < 8 || Math.abs(totalDeltaX) < Math.abs(totalDeltaY)) {
+          lastX = touch.clientX;
+          return;
+        }
+        isHorizontal = true;
+      }
+
+      event.preventDefault();
+      const sectionTop = section!.getBoundingClientRect().top + window.scrollY;
+      const scrollRangePx = section!.offsetHeight - window.innerHeight;
+      const sectionBottom = sectionTop + scrollRangePx;
+      const trackRangePx = ((PROJECTS.length - 1) * MOBILE_STEP_VW * window.innerWidth) / 100;
+      const factor = trackRangePx > 0 ? scrollRangePx / trackRangePx : 1;
+      const target = window.scrollY - deltaX * factor;
+      const clamped = Math.min(Math.max(target, sectionTop), sectionBottom);
+      // `behavior: "instant"` explícito, senão herda o `scroll-behavior:
+      // smooth` do <html> e cada chamada vira uma animação que se atropela
+      // com a próxima — o dedo fica sempre um passo atrás do dedo.
+      window.scrollTo({ top: clamped, left: 0, behavior: "instant" });
+      lastX = touch.clientX;
+    }
+
+    node.addEventListener("touchstart", handleTouchStart, { passive: true });
+    node.addEventListener("touchmove", handleTouchMove, { passive: false });
+    return () => {
+      node.removeEventListener("touchstart", handleTouchStart);
+      node.removeEventListener("touchmove", handleTouchMove);
+    };
+  }, []);
+  const activeLabel = useTransform(activeIndex, (index) => String(PROJECTS[index]?.service ?? ""));
+  const activeCounter = useTransform(activeIndex, (index) => String(index + 1).padStart(2, "0"));
+
+  return (
+    <section
+      ref={trackWrapRef}
+      style={{ height: `${PROJECTS.length * MOBILE_VH_PER_ALBUM}vh` }}
+      className="relative bg-onyx"
+    >
+      <div className="sticky top-0 flex min-h-screen flex-col justify-center gap-8 py-12">
+        <div className="px-6">
+          <h2 className="font-heading text-3xl font-bold tracking-wide text-foreground">Projetos</h2>
+          <p className="mt-3 max-w-xs text-neutral">
+            A cada rolagem, um carro mais perto e um serviço em foco.
+          </p>
+        </div>
+
+        <div className="overflow-hidden">
+          <motion.div
+            ref={trackRef}
+            style={{ x: trackX, gap: `${MOBILE_GAP_VW}vw` }}
+            className="flex pl-[11vw]"
+          >
+            {PROJECTS.map((project, index) => (
+              <MobileProjectCard
+                key={project.service}
+                project={project}
+                index={index}
+                activeIndex={activeIndex}
+                onOpen={() => onOpen(index)}
+              />
+            ))}
+          </motion.div>
+        </div>
+
+        <div className="flex flex-col items-center gap-1 px-6 text-center">
+          <span className="font-heading text-xs tracking-[0.4em] text-accent-light">
+            <motion.span>{activeCounter}</motion.span> / {String(PROJECTS.length).padStart(2, "0")}
+          </span>
+          <motion.span className="font-heading text-xl font-bold tracking-wide text-foreground">
+            {activeLabel}
+          </motion.span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function AlbumViewer({
   album,
   photoIndex,
@@ -656,6 +826,12 @@ function AlbumViewer({
 
 export function Gallery() {
   const prefersReducedMotion = useReducedMotion();
+  // O carro em canvas é redesenhado a cada pixel de scroll — em celular isso
+  // costuma engasgar (menos GPU, barra de endereço mudando a altura da tela
+  // no meio da rolagem). Abaixo do breakpoint de tablet, troca pelo
+  // carrossel horizontal (só transform, sem canvas nem vídeo).
+  const isMobile = useMediaQuery("(max-width: 767px)");
+  const useCarousel = isMobile && !prefersReducedMotion;
   const [openAlbumIndex, setOpenAlbumIndex] = useState<number | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
   const openAlbum = openAlbumIndex !== null ? PROJECTS[openAlbumIndex] : null;
@@ -672,28 +848,34 @@ export function Gallery() {
 
   return (
     <>
-      <section id="projetos" className="bg-onyx px-6 pt-24 sm:px-10 lg:px-16 pb-8">
-        <motion.div
-          ref={headerRef}
-          initial="hidden"
-          animate={headerControls}
-          variants={staggerContainer(0.1, 0)}
-          className="mx-auto max-w-6xl"
-        >
-          <motion.h2
-            variants={fadeUp}
-            className="font-heading text-3xl font-bold tracking-wide text-foreground sm:text-4xl"
+      {/* No carrossel mobile o título entra dentro do próprio bloco fixo,
+          junto com os cards — aqui fica só a âncora de rolagem "#projetos". */}
+      <section id="projetos" className={cn("bg-onyx px-6 sm:px-10 lg:px-16", useCarousel ? "" : "pt-24 pb-8")}>
+        {useCarousel ? null : (
+          <motion.div
+            ref={headerRef}
+            initial="hidden"
+            animate={headerControls}
+            variants={staggerContainer(0.1, 0)}
+            className="mx-auto max-w-6xl"
           >
-            Projetos
-          </motion.h2>
-          <motion.p variants={fadeUp} className="mt-4 max-w-lg text-neutral">
-            A cada rolagem, um carro mais perto e um serviço em foco.
-          </motion.p>
-        </motion.div>
+            <motion.h2
+              variants={fadeUp}
+              className="font-heading text-3xl font-bold tracking-wide text-foreground sm:text-4xl"
+            >
+              Projetos
+            </motion.h2>
+            <motion.p variants={fadeUp} className="mt-4 max-w-lg text-neutral">
+              A cada rolagem, um carro mais perto e um serviço em foco.
+            </motion.p>
+          </motion.div>
+        )}
       </section>
 
       {prefersReducedMotion ? (
         <StaticProjectsRow onOpen={openAlbumAt} />
+      ) : useCarousel ? (
+        <MobileProjectsCarousel onOpen={openAlbumAt} />
       ) : (
         <ProjectsShowcase onOpen={openAlbumAt} />
       )}

@@ -20,7 +20,7 @@ import {
   SpeakerIcon,
 } from "@/components/ui/icons";
 import { SectionExit } from "@/components/ui/section-exit";
-import { cn } from "@/lib/utils";
+import { cn, useMediaQuery } from "@/lib/utils";
 import { EASE_OUT, fadeUp, staggerContainer, useDirectionalReveal } from "@/lib/animations";
 
 interface Service {
@@ -83,11 +83,17 @@ const SERVICES: Service[] = [
 const DEFAULT_FEATURED_TITLE =
   SERVICES.find((service) => service.featured)?.title ?? SERVICES[0].title;
 
-// Degradê exclusivo do card grande: opacidade cai em degraus suaves
-// (100 → 95 → 75 → 50 → 0) a cada 15% da altura, ficando mais escuro perto
-// do texto e clareando de forma contínua até o topo do card.
-const FEATURED_GRADIENT =
+// Degradê usado nos cards em telas grandes: opacidade cai em degraus
+// suaves (100 → 95 → 75 → 50 → 0) a cada 15% da altura, ficando bem escuro
+// perto do texto e clareando de forma contínua até o topo do card.
+const STRONG_GRADIENT =
   "linear-gradient(to top, rgba(10,12,12,1) 0%, rgba(10,12,12,1) 15%, rgba(10,12,12,0.95) 30%, rgba(10,12,12,0.75) 45%, rgba(10,12,12,0.5) 60%, rgba(10,12,12,0) 100%)";
+
+// Mesma ideia no mobile, mas esticada por mais da altura do card — o pico
+// de 100% continua só na base (não fica mais forte), só demora bem mais
+// pra sumir, então o degradê fica presente até bem mais perto do topo.
+const MOBILE_GRADIENT =
+  "linear-gradient(to top, rgba(10,12,12,1) 0%, rgba(10,12,12,1) 20%, rgba(10,12,12,0.9) 45%, rgba(10,12,12,0.65) 70%, rgba(10,12,12,0.35) 90%, rgba(10,12,12,0) 100%)";
 
 function ServiceCard({
   icon: Icon,
@@ -95,12 +101,14 @@ function ServiceCard({
   description,
   image,
   featured,
+  canFeature,
   className,
   onFeature,
-}: Service & { featured: boolean; className: string; onFeature: () => void }) {
+}: Service & { featured: boolean; canFeature: boolean; className: string; onFeature: () => void }) {
   const cardRef = useRef<HTMLButtonElement>(null);
   const prefersReducedMotion = useReducedMotion();
   const [isHovered, setIsHovered] = useState(false);
+  const interactive = canFeature && !featured;
 
   const rawRotateX = useMotionValue(0);
   const rawRotateY = useMotionValue(0);
@@ -140,9 +148,9 @@ function ServiceCard({
       layoutId={`service-card-${title}`}
       transition={{ layout: { duration: 0.6, ease: EASE_OUT } }}
       variants={fadeUp}
-      onClick={featured ? undefined : onFeature}
-      aria-label={featured ? undefined : `Destacar ${title} como serviço principal`}
-      tabIndex={featured ? -1 : 0}
+      onClick={interactive ? onFeature : undefined}
+      aria-label={interactive ? `Destacar ${title} como serviço principal` : undefined}
+      tabIndex={interactive ? 0 : -1}
       onMouseEnter={() => setIsHovered(true)}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
@@ -153,7 +161,7 @@ function ServiceCard({
       }}
       className={cn(
         "group relative min-h-70 w-full overflow-hidden bg-surface text-left",
-        featured ? "cursor-default" : "cursor-pointer",
+        interactive ? "cursor-pointer" : "cursor-default",
         className,
       )}
     >
@@ -173,18 +181,10 @@ function ServiceCard({
             />
           </motion.div>
           <div
-            className={cn(
-              "absolute inset-0 bg-linear-to-t from-onyx to-transparent to-75%",
-              featured && "lg:hidden",
-            )}
+            aria-hidden="true"
+            className="absolute inset-0"
+            style={{ backgroundImage: canFeature ? STRONG_GRADIENT : MOBILE_GRADIENT }}
           />
-          {featured ? (
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 hidden lg:block"
-              style={{ backgroundImage: FEATURED_GRADIENT }}
-            />
-          ) : null}
         </>
       ) : (
         <div className="absolute inset-0 bg-linear-to-br from-surface via-surface to-onyx" />
@@ -200,7 +200,7 @@ function ServiceCard({
 
       <div className="absolute inset-0 border border-transparent transition-colors duration-500 group-hover:border-accent-light/40" />
 
-      {!featured ? (
+      {interactive ? (
         <span className="pointer-events-none absolute right-4 top-4 rounded-full border border-accent-light/30 bg-onyx/70 px-3 py-1 text-[11px] tracking-[0.2em] text-accent-light opacity-0 backdrop-blur-sm transition-opacity duration-300 group-hover:opacity-100">
           DESTACAR
         </span>
@@ -218,6 +218,13 @@ function ServiceCard({
 export function Services() {
   const { ref, controls } = useDirectionalReveal(0.2);
   const [featuredTitle, setFeaturedTitle] = useState(DEFAULT_FEATURED_TITLE);
+  // O card grande só existe visualmente a partir do breakpoint lg (ver as
+  // classes de col-span/row-span abaixo). No mobile todos os cards têm o
+  // mesmo tamanho, então trocar qual é o "principal" não muda nada visível
+  // — só deixaria os cards clicáveis à toa. Por isso a troca fica desativada
+  // abaixo de lg. O mesmo booleano também escolhe qual degradê o
+  // ServiceCard usa (o forte de telas grandes ou o esticado do mobile).
+  const canFeature = useMediaQuery("(min-width: 1024px)");
 
   // O card em destaque vai pra frente da grade (posição fixa do bento
   // layout); o restante mantém a ordem original. Se sobrar uma quantidade
@@ -265,6 +272,7 @@ export function Services() {
                   key={service.title}
                   {...service}
                   featured={isFeatured}
+                  canFeature={canFeature}
                   className={className}
                   onFeature={() => setFeaturedTitle(service.title)}
                 />
