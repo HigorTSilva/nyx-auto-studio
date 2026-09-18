@@ -39,7 +39,7 @@ export function MapSection() {
             Nosso estúdio existe de verdade. Venha ver o processo de perto.
           </motion.p>
 
-          <motion.div variants={fadeUp} className="relative mt-10 h-[420px] w-full overflow-hidden sm:h-[480px]">
+          <motion.div variants={fadeUp} className="relative mt-10 h-105 w-full overflow-hidden sm:h-120">
             <iframe
               src={mapSrc}
               title="Localização da Nyx Auto Studio"

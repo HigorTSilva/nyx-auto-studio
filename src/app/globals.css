@@ -25,12 +25,14 @@ body {
 }
 
 /* Vídeos de fundo (hero) são só decorativos. Nenhum overlay/controle
-   nativo do navegador (picture-in-picture, cast, etc.) deve aparecer. */
+   nativo do navegador (picture-in-picture, cast, etc.) deve aparecer. O
+   botão de cast é desligado via atributo `disableRemotePlayback` nos
+   elementos <video> (não por aqui) — a API interna que escondia esse botão
+   via CSS foi descontinuada pelos navegadores. */
 video::-webkit-media-controls,
 video::-webkit-media-controls-enclosure,
 video::-webkit-media-controls-panel,
 video::-webkit-media-controls-overlay-play-button,
-video::-webkit-media-controls-start-playback-button,
-video::-internal-media-controls-overlay-cast-button {
+video::-webkit-media-controls-start-playback-button {
   display: none !important;
 }

@@ -101,11 +101,12 @@ const CAR_APPROACH_END = 1;
 const PHOTOS_INTRO_END = 0.08;
 const PHOTOS_OUTRO_START = 0.92;
 
-function useFramePreload(count: number) {
+function useFramePreload(count: number, shouldLoad: boolean) {
   const framesRef = useRef<HTMLImageElement[]>([]);
   const [loaded, setLoaded] = useState(0);
 
   useEffect(() => {
+    if (!shouldLoad) return;
     let cancelled = false;
     const images: HTMLImageElement[] = [];
 
@@ -123,7 +124,7 @@ function useFramePreload(count: number) {
     return () => {
       cancelled = true;
     };
-  }, [count]);
+  }, [count, shouldLoad]);
 
   return { framesRef, loaded };
 }
@@ -301,7 +302,29 @@ function ProjectCard({
 function ProjectsShowcase({ onOpen }: { onOpen: (index: number) => void }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: trackRef, offset: ["start start", "end end"] });
-  const { framesRef, loaded } = useFramePreload(FRAME_COUNT);
+
+  // As 71 imagens da sequência do carro (~2,2MB) só começam a baixar quando
+  // a seção está perto de entrar na tela — sem isso, todo mundo pagava esse
+  // download logo na primeira visita, competindo com o vídeo do Hero por
+  // banda, mesmo quem nunca rola até aqui.
+  const [shouldLoadFrames, setShouldLoadFrames] = useState(false);
+  useEffect(() => {
+    const node = trackRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoadFrames(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "100% 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const { framesRef, loaded } = useFramePreload(FRAME_COUNT, shouldLoadFrames);
 
   const overlayOpacity = useTransform(scrollYProgress, [0, CAR_APPROACH_END, 1], [0.35, 0.3, 0.5]);
   const photosVisibility = useTransform(
@@ -471,6 +494,13 @@ function MobileProjectsCarousel({ onOpen }: { onOpen: (index: number) => void })
     let startY = 0;
     let lastX = 0;
     let isHorizontal = false;
+    // Geometria calculada uma vez por gesto (no touchstart), não a cada
+    // touchmove — ler getBoundingClientRect/offsetHeight repetidas vezes
+    // durante o arraste, logo após escrever o scroll, força um reflow a
+    // cada evento.
+    let sectionTop = 0;
+    let sectionBottom = 0;
+    let factor = 1;
 
     function handleTouchStart(event: TouchEvent) {
       const touch = event.touches[0];
@@ -478,6 +508,12 @@ function MobileProjectsCarousel({ onOpen }: { onOpen: (index: number) => void })
       startY = touch.clientY;
       lastX = touch.clientX;
       isHorizontal = false;
+
+      sectionTop = section!.getBoundingClientRect().top + window.scrollY;
+      const scrollRangePx = section!.offsetHeight - window.innerHeight;
+      sectionBottom = sectionTop + scrollRangePx;
+      const trackRangePx = ((PROJECTS.length - 1) * MOBILE_STEP_VW * window.innerWidth) / 100;
+      factor = trackRangePx > 0 ? scrollRangePx / trackRangePx : 1;
     }
 
     function handleTouchMove(event: TouchEvent) {
@@ -495,11 +531,6 @@ function MobileProjectsCarousel({ onOpen }: { onOpen: (index: number) => void })
       }
 
       event.preventDefault();
-      const sectionTop = section!.getBoundingClientRect().top + window.scrollY;
-      const scrollRangePx = section!.offsetHeight - window.innerHeight;
-      const sectionBottom = sectionTop + scrollRangePx;
-      const trackRangePx = ((PROJECTS.length - 1) * MOBILE_STEP_VW * window.innerWidth) / 100;
-      const factor = trackRangePx > 0 ? scrollRangePx / trackRangePx : 1;
       const target = window.scrollY - deltaX * factor;
       const clamped = Math.min(Math.max(target, sectionTop), sectionBottom);
       // `behavior: "instant"` explícito, senão herda o `scroll-behavior:
