@@ -182,6 +182,9 @@ function ServiceCard({
               // que os 50vw genéricos que os dois usavam antes, que faziam
               // os cards pequenos pedirem imagem maior do que exibem.
               sizes={featured ? "(min-width: 1024px) 760px, 100vw" : "(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw"}
+              // Decorativa e sempre coberta pelo degradê escuro — 50 em vez
+              // do padrão 75 não faz diferença visível aqui.
+              quality={50}
             />
           </motion.div>
           <div

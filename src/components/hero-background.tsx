@@ -28,6 +28,12 @@ export function HeroBackground({ prefersReducedMotion }: HeroBackgroundProps) {
   const videoBRef = useRef<HTMLVideoElement>(null);
   const crossfadingRef = useRef(false);
   const [activeIsA, setActiveIsA] = useState(true);
+  // O vídeo B só existe pra cobrir o instante do crossfade, perto do fim de
+  // cada volta do loop — não precisa da própria cópia do vídeo (mesmo peso
+  // do A) baixando em paralelo desde o primeiro segundo da página. Ele
+  // começa com `preload="none"` e só é liberado pra carregar depois que o
+  // vídeo principal já está de pé, sem competir pela banda inicial.
+  const [videoBReady, setVideoBReady] = useState(false);
 
   useEffect(() => {
     if (prefersReducedMotion) return;
@@ -38,6 +44,8 @@ export function HeroBackground({ prefersReducedMotion }: HeroBackgroundProps) {
     videoA.muted = true;
     videoB.muted = true;
     videoB.currentTime = 0;
+
+    const readyTimer = window.setTimeout(() => setVideoBReady(true), 2500);
 
     function handleError(event: Event) {
       const video = event.currentTarget as HTMLVideoElement;
@@ -79,12 +87,20 @@ export function HeroBackground({ prefersReducedMotion }: HeroBackgroundProps) {
     videoA.play().catch((error) => console.warn("Hero video autoplay was blocked", error));
 
     return () => {
+      window.clearTimeout(readyTimer);
       videoA.removeEventListener("error", handleError);
       videoB.removeEventListener("error", handleError);
       videoA.removeEventListener("timeupdate", handleTimeUpdateA);
       videoB.removeEventListener("timeupdate", handleTimeUpdateB);
     };
   }, [prefersReducedMotion]);
+
+  // `preload="none"` não garante que o navegador comece a baixar sozinho
+  // assim que vira `"auto"` — chamar `load()` força a reavaliação dos
+  // <source> com o preload atual.
+  useEffect(() => {
+    if (videoBReady) videoBRef.current?.load();
+  }, [videoBReady]);
 
   if (prefersReducedMotion) {
     return (
@@ -125,7 +141,7 @@ export function HeroBackground({ prefersReducedMotion }: HeroBackgroundProps) {
         ref={videoBRef}
         playsInline
         muted
-        preload="auto"
+        preload={videoBReady ? "auto" : "none"}
         aria-hidden="true"
         disablePictureInPicture
         disableRemotePlayback
