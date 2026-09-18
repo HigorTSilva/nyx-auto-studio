@@ -94,6 +94,7 @@ export function HeroBackground({ prefersReducedMotion }: HeroBackgroundProps) {
         aria-hidden="true"
         fill
         priority
+        sizes="100vw"
         className="pointer-events-none object-cover"
       />
     );

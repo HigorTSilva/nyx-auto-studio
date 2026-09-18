@@ -177,7 +177,11 @@ function ServiceCard({
               aria-hidden="true"
               fill
               className="object-cover transition-transform duration-700 ease-out will-change-transform group-hover:scale-110"
-              sizes="(min-width: 1024px) 50vw, 100vw"
+              // O container tem no máximo 1152px (max-w-6xl). O card grande
+              // ocupa ~4/6 dessa largura, os pequenos ~2/6 — bem menos do
+              // que os 50vw genéricos que os dois usavam antes, que faziam
+              // os cards pequenos pedirem imagem maior do que exibem.
+              sizes={featured ? "(min-width: 1024px) 760px, 100vw" : "(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw"}
             />
           </motion.div>
           <div
