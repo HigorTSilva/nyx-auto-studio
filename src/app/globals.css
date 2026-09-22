@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --color-onyx: #0a0c0c;
+  --color-surface: #141817;
+  --color-accent: #0e5c58;
+  --color-accent-light: #34a399;
+  --color-neutral: #7a8683;
+  --color-foreground: #edefee;
+  --color-error: #e2584a;
+
+  --font-heading: var(--font-space-grotesk);
+  --font-body: var(--font-manrope);
+}
+
+body {
+  background-color: var(--color-onyx);
+  color: var(--color-foreground);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+video::-webkit-media-controls,
+video::-webkit-media-controls-enclosure,
+video::-webkit-media-controls-panel,
+video::-webkit-media-controls-overlay-play-button,
+video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+}
